@@ -1,0 +1,249 @@
+{
+  "app": "gh",
+  "run_id": "7c5f",
+  "tokens": {
+    "cnryghaema3029e": {
+      "user": "a",
+      "type": "em",
+      "desc": "email address"
+    },
+    "cnryghanm0c2d4b": {
+      "user": "a",
+      "type": "nm",
+      "desc": "display name"
+    },
+    "cnryghbem598367": {
+      "user": "b",
+      "type": "em",
+      "desc": "email address"
+    },
+    "cnryghbnmc27073": {
+      "user": "b",
+      "type": "nm",
+      "desc": "display name"
+    },
+    "cnryghapicb9f84": {
+      "user": "a",
+      "type": "pi",
+      "desc": "profile image upload (filename)"
+    },
+    "cnryghaci601d12": {
+      "user": "a",
+      "type": "ci",
+      "desc": "cover image upload (filename)"
+    },
+    "cnryghabie99a18": {
+      "user": "a",
+      "type": "bi",
+      "desc": "profile bio"
+    },
+    "cnryghalo751709": {
+      "user": "a",
+      "type": "lo",
+      "desc": "profile location"
+    },
+    "cnryghaws53ca34": {
+      "user": "a",
+      "type": "ws",
+      "desc": "profile website"
+    },
+    "cnryghaim9f122f": {
+      "user": "a",
+      "type": "im",
+      "desc": "image uploaded into a post (filename)"
+    },
+    "cnryghapt064f56": {
+      "user": "a",
+      "type": "pt",
+      "desc": "published post title"
+    },
+    "cnryghapbdc849e": {
+      "user": "a",
+      "type": "pb",
+      "desc": "published post body"
+    },
+    "cnrygharvfcec73": {
+      "user": "a",
+      "type": "rv",
+      "desc": "earlier post revision (text later edited away)"
+    },
+    "cnryghadr02e0cb": {
+      "user": "a",
+      "type": "dr",
+      "desc": "draft post body"
+    },
+    "cnryghaca14603f": {
+      "user": "a",
+      "type": "ca",
+      "desc": "co-authored post body"
+    },
+    "cnryghmema7fe23": {
+      "user": "m",
+      "type": "em",
+      "desc": "email address"
+    },
+    "cnryghmnm75eeb5": {
+      "user": "m",
+      "type": "nm",
+      "desc": "display name"
+    },
+    "cnryghmrf1a967d": {
+      "user": "m",
+      "type": "rf",
+      "desc": "signup referrer URL (attribution)"
+    },
+    "cnryghneme8eeff": {
+      "user": "n",
+      "type": "em",
+      "desc": "email address"
+    },
+    "cnryghnnmfc9d90": {
+      "user": "n",
+      "type": "nm",
+      "desc": "display name"
+    },
+    "cnryghnrfe1add8": {
+      "user": "n",
+      "type": "rf",
+      "desc": "signup referrer URL (attribution)"
+    },
+    "cnryghpem40e1e4": {
+      "user": "p",
+      "type": "em",
+      "desc": "email address"
+    },
+    "cnryghpnmacb043": {
+      "user": "p",
+      "type": "nm",
+      "desc": "display name"
+    },
+    "cnryghprfcccf3a": {
+      "user": "p",
+      "type": "rf",
+      "desc": "signup referrer URL (attribution)"
+    },
+    "cnryghmunaf2c40": {
+      "user": "m",
+      "type": "un",
+      "desc": "name after self-service profile update"
+    },
+    "cnryghmnt82415f": {
+      "user": "m",
+      "type": "nt",
+      "desc": "admin note on member"
+    },
+    "cnryghmlb8150f8": {
+      "user": "m",
+      "type": "lb",
+      "desc": "member label"
+    },
+    "cnryghmcm3e51c0": {
+      "user": "m",
+      "type": "cm",
+      "desc": "comment body"
+    },
+    "cnryghncm94bff1": {
+      "user": "n",
+      "type": "cm",
+      "desc": "comment body"
+    },
+    "cnryghnrpe1830a": {
+      "user": "n",
+      "type": "rp",
+      "desc": "reply body"
+    },
+    "cnryghmrp5b351d": {
+      "user": "m",
+      "type": "rp",
+      "desc": "reply body"
+    }
+  },
+  "identifiers": {
+    "6af643ab1a6add0001bce148": {
+      "user": "a",
+      "kind": "user id"
+    },
+    "cnryghaema3029e@example.com": {
+      "user": "a",
+      "kind": "email"
+    },
+    "6af643af1a6add0001bce14e": {
+      "user": "b",
+      "kind": "user id"
+    },
+    "cnryghbem598367@example.com": {
+      "user": "b",
+      "kind": "email"
+    },
+    "6af643b21a6add0001bce152": {
+      "user": "a",
+      "kind": "post id"
+    },
+    "6af643b41a6add0001bce15a": {
+      "user": "a",
+      "kind": "draft post id"
+    },
+    "cnryghmema7fe23@example.com": {
+      "user": "m",
+      "kind": "email"
+    },
+    "45dbcfda-25d4-499f-9346-d062ac14d728": {
+      "user": "m",
+      "kind": "member uuid"
+    },
+    "cnryghneme8eeff@example.com": {
+      "user": "n",
+      "kind": "email"
+    },
+    "e6da0c28-05ac-4b08-b743-f5740e262718": {
+      "user": "n",
+      "kind": "member uuid"
+    },
+    "cnryghpem40e1e4@example.com": {
+      "user": "p",
+      "kind": "email"
+    },
+    "0938eff9-37c7-487f-9a19-9ac2f594c14a": {
+      "user": "p",
+      "kind": "member uuid"
+    },
+    "6af643b71a6add0001bce165": {
+      "user": "m",
+      "kind": "member id"
+    },
+    "6af643be1a6add0001bce16d": {
+      "user": "n",
+      "kind": "member id"
+    },
+    "6af643c41a6add0001bce175": {
+      "user": "p",
+      "kind": "member id"
+    },
+    "6af643c81a6add0001bce17f": {
+      "user": "m",
+      "kind": "comment id"
+    },
+    "6af643c81a6add0001bce182": {
+      "user": "m",
+      "kind": "comment id"
+    }
+  },
+  "extra": {
+    "a_id": "6af643ab1a6add0001bce148",
+    "m_id": "6af643b71a6add0001bce165",
+    "post_id": "6af643b21a6add0001bce152",
+    "post_url": "http://localhost:2368/post-cnryghapt064f56/",
+    "co_post_id": "6af643b41a6add0001bce15e",
+    "a_slug": "test",
+    "images": [
+      "http://localhost:2368/content/images/2026/11/cnryghapicb9f84.png",
+      "http://localhost:2368/content/images/2026/11/cnryghaci601d12.png",
+      "http://localhost:2368/content/images/2026/11/cnryghaim9f122f.png"
+    ]
+  },
+  "deleted_at": "2026-11-12T22:55:24Z",
+  "deleted": [
+    "a",
+    "m"
+  ]
+}

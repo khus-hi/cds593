@@ -1,0 +1,62 @@
+# Ghost deletion-audit harness.
+# Mirrors Ghost's official Docker deployment (Ghost 5 + MySQL 8, MySQL defaults kept,
+# including the binary log) and adds Mailpit so outgoing mail (invites, magic links,
+# notifications) is captured as one more place user data can end up.
+# Every storage layer is bind-mounted under ./state so the scanner can read it directly.
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: ghost
+      MYSQL_USER: ghost
+      MYSQL_PASSWORD: ghostpw
+    volumes:
+      - ./state/mysql:/var/lib/mysql          # InnoDB tablespaces, redo/undo logs, binlogs
+    ports:
+      - "127.0.0.1:3306:3306"                  # scanner reads the binlog over the replication protocol
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-prootpw"]
+      interval: 5s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:latest
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - ./state/mail:/data
+    ports:
+      - "8025:8025"
+
+  ghost:
+    image: ghost:5-alpine
+    restart: unless-stopped        # survive MySQL restarts
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      url: http://localhost:2368
+      server__host: 0.0.0.0     # sandbox has no IPv6
+      NODE_ENV: production
+      database__client: mysql
+      database__connection__host: mysql
+      database__connection__user: ghost
+      database__connection__password: ghostpw
+      database__connection__database: ghost
+      mail__transport: SMTP
+      mail__options__host: mailpit
+      mail__options__port: "1025"
+      mail__options__secure: "false"
+      mail__from: "audit@example.com"
+      # Log to file as well as stdout (Ghost's production default is file+stdout)
+      logging__transports: '["file","stdout"]'
+      logging__path: /var/lib/ghost/content/logs/
+      logging__level: info
+      # New-device email verification would block scripted staff logins
+      security__staffDeviceVerification: "false"
+    volumes:
+      - ./state/content:/var/lib/ghost/content  # images, files, data/ exports, logs
+    ports:
+      - "2368:2368"
