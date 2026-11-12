@@ -49,6 +49,11 @@ def main():
         tok_found = {h["needle"] for h in last["hits"] if h["needle"] in toks}
         types = sorted({m["type"] for m in toks.values()})
         removed = [t for t in types if not any(toks[n]["type"] == t for n in tok_found)]
+        app_layers = {"db", "content", "stdout", "public_web", "admin_api"}
+        app_found = {h["needle"] for h in last["hits"] if h["needle"] in toks and h["layer"] in app_layers}
+        pub_found = {h["needle"] for h in last["hits"] if h["needle"] in toks and h["layer"] == "public_web"}
+        w(f"\nHeld by the app itself (db, content, logs, web, admin) after deletion: {len(app_found)}/{len(toks)} "
+          f"tokens; publicly visible: {len(pub_found)}/{len(toks)}.")
         w(f"\nAfter deletion ({last['label']}): {len(tok_found)}/{len(toks)} canary tokens still observable "
           f"somewhere; {len(removed)}/{len(types)} data types completely removed "
           f"({', '.join(removed) or 'none'}).\n")

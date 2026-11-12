@@ -1,0 +1,6 @@
+# Override: run the patched Ghost build instead of the official image.
+#   docker compose -f docker-compose.yml -f docker-compose.patched.yml up -d
+services:
+  ghost:
+    image: ghost-audit-patched:5.130.6
+    build: ../fixes

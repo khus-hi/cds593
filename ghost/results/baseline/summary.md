@@ -15,6 +15,8 @@ Distinct needles found, per layer and phase:
 | admin_api | 16 | 11 | 11 | 11 |
 | **any layer** | 17 | 17 | 17 | 17 |
 
+Held by the app itself (db, content, logs, web, admin) after deletion: 13/13 tokens; publicly visible: 6/13.
+
 After deletion (t3-after-restart): 13/13 canary tokens still observable somewhere; 0/13 data types completely removed (none).
 
 Where each surviving needle is, in the last scan:
@@ -54,6 +56,8 @@ Distinct needles found, per layer and phase:
 | public_web | 8 | 4 | 4 | 4 |
 | admin_api | 8 | 3 | 3 | 3 |
 | **any layer** | 14 | 13 | 13 | 13 |
+
+Held by the app itself (db, content, logs, web, admin) after deletion: 7/8 tokens; publicly visible: 2/8.
 
 After deletion (t3-after-restart): 8/8 canary tokens still observable somewhere; 0/8 data types completely removed (none).
 

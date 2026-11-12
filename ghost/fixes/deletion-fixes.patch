@@ -1,0 +1,260 @@
+--- a/core/server/services/Users.js
++++ b/core/server/services/Users.js
+@@ -6,6 +6,7 @@
+  * @TODO: pass these in as dependencies
+  */
+ const DomainEvents = require('@tryghost/domain-events/lib/DomainEvents');
++const cleanup = require('./privacy/deletion-cleanup');
+ 
+ /**
+  * @typedef {Object} IdbBackup
+@@ -159,6 +160,14 @@
+         let filename = null;
+         const backupPath = await this.dbBackup.backup();
+ 
++        // Remember what the user leaves behind outside the users row, for cleanup below.
++        const doomed = await this.models.User.findOne({id: frameOptions.id, status: 'all'}, {withRelated: []});
++        const leftovers = doomed ? {
++            name: doomed.get('name'),
++            email: doomed.get('email'),
++            images: [doomed.get('profile_image'), doomed.get('cover_image')].filter(Boolean)
++        } : {name: null, email: null, images: []};
++
+         if (backupPath) {
+             const parsedFileName = path.parse(backupPath);
+             filename = `${parsedFileName.name}${parsedFileName.ext}`;
+@@ -208,7 +217,20 @@
+ 
+             await this.models.User.destroy(Object.assign({status: 'all'}, frameOptions));
+ 
++            // Audit fix (bug): sessions.user_id has no foreign key, so sessions outlived the user.
++            const knex = this.models.Base.knex;
++            await cleanup.destroyUserSessions(knex, frameOptions.id, t);
++            // Audit fix (non-compliant): keep the history log, but not who it was about.
++            await cleanup.scrubActions(knex, [leftovers.email, leftovers.name], 'Deleted user', t);
++
+             return filename;
++        }).then(async (result) => {
++            const knex = this.models.Base.knex;
++            // Audit fix (bug): the user's own profile/cover images stayed on disk and public.
++            await cleanup.deleteOrphanedImages(knex, leftovers.images);
++            // Audit fix (non-compliant): the pre-deletion backup was kept forever.
++            await cleanup.pruneDeletionBackups(backupPath);
++            return result;
+         });
+     }
+ }
+--- a/core/server/models/base/plugins/actions.js
++++ b/core/server/models/base/plugins/actions.js
+@@ -111,7 +111,10 @@
+             const currentPrimaryName = this.get('title') || this.get('name') || this.get('email');
+ 
+             // Attach the primary name to the action (ie. the title or name of the model)
+-            if (event === 'deleted') {
++            if (event === 'deleted' && ['user', 'member'].includes(resourceType)) {
++                // Audit fix: don't write the deleted person's name into the history log.
++                context.primary_name = resourceType === 'user' ? 'Deleted user' : 'Deleted member';
++            } else if (event === 'deleted') {
+                 context.primary_name = previousPrimaryName;
+             } else if (['added', 'edited'].includes(event)) {
+                 context.primary_name = currentPrimaryName || previousPrimaryName;
+--- a/core/server/api/endpoints/members.js
++++ b/core/server/api/endpoints/members.js
+@@ -5,6 +5,7 @@
+ const logging = require('@tryghost/logging');
+ const models = require('../../models');
+ const membersService = require('../../services/members');
++const deletionCleanup = require('../../services/privacy/deletion-cleanup');
+ 
+ const settingsCache = require('../../../shared/settings-cache');
+ const tpl = require('@tryghost/tpl');
+@@ -299,11 +300,18 @@
+         },
+         permissions: true,
+         async query(frame) {
+-            return membersService.api.members.destroy({
++            const doomed = await models.Member.findOne({id: frame.options.id});
++            const result = await membersService.api.members.destroy({
+                 id: frame.options.id
+             }, {
+                 ...frame.options, require: true, cancelStripeSubscriptions: frame.options.cancel
+             });
++            if (doomed) {
++                // Audit fix (non-compliant): scrub the member's name/email from the history log.
++                await deletionCleanup.scrubActions(models.Base.knex,
++                    [doomed.get('email'), doomed.get('name')], 'Deleted member');
++            }
++            return result;
+         }
+     },
+ 
+--- /dev/null
++++ b/core/server/services/privacy/deletion-cleanup.js
+@@ -0,0 +1,167 @@
++// Extra cleanup run when a staff user or a member is deleted.
++//
++// Each helper closes one residual trace found by the deletion audit:
++//   destroyUserSessions      bug           sessions rows outlived the user (no FK, never purged)
++//   scrubActions             non-compliant history log kept the deleted person's name / email
++//   deleteOrphanedImages     bug           profile / cover images stayed on disk and publicly served
++//   pruneDeletionBackups     non-compliant pre-deletion JSON backups were kept forever
++const fs = require('fs-extra');
++const path = require('path');
++const logging = require('@tryghost/logging');
++const config = require('../../../shared/config');
++
++const IMAGE_PREFIX = '/content/images/';
++
++/** Delete every session belonging to the user (sessions.user_id has no foreign key). */
++async function destroyUserSessions(knex, userId, transacting) {
++    const q = knex('sessions').where('user_id', userId);
++    if (transacting) {
++        q.transacting(transacting);
++    }
++    return q.del();
++}
++
++/**
++ * Replace the given strings (name, email) in the history log with a placeholder.
++ * The audit trail keeps the fact that something happened, not who it was about.
++ */
++async function scrubActions(knex, needles, replacement, transacting) {
++    const values = [...new Set(needles.filter(n => typeof n === 'string' && n.length >= 3))];
++    let changed = 0;
++    for (const value of values) {
++        const escaped = value.replace(/[\\%_]/g, c => `\\${c}`);
++        const q = knex('actions').select('id', 'context').where('context', 'like', `%${escaped}%`);
++        if (transacting) {
++            q.transacting(transacting);
++        }
++        for (const row of await q) {
++            const u = knex('actions').where('id', row.id)
++                .update({context: row.context.split(value).join(replacement)});
++            if (transacting) {
++                u.transacting(transacting);
++            }
++            await u;
++            changed += 1;
++        }
++    }
++    return changed;
++}
++
++function relativeImagePath(url) {
++    if (!url || typeof url !== 'string') {
++        return null;
++    }
++    const i = url.indexOf(IMAGE_PREFIX);
++    return i === -1 ? null : url.slice(i + IMAGE_PREFIX.length).split('?')[0];
++}
++
++/** True if any remaining row still points at the image. */
++async function imageStillReferenced(knex, rel) {
++    const like = `%${IMAGE_PREFIX}${rel.replace(/[\\%_]/g, c => `\\${c}`)}%`;
++    const checks = [
++        ['posts', ['feature_image', 'lexical', 'mobiledoc', 'html']],
++        ['posts_meta', ['og_image', 'twitter_image']],
++        ['users', ['profile_image', 'cover_image']],
++        ['tags', ['feature_image', 'og_image', 'twitter_image']],
++        ['settings', ['value']]
++    ];
++    for (const [table, cols] of checks) {
++        const q = knex(table).count({n: '*'}).where(function () {
++            for (const c of cols) {
++                this.orWhere(c, 'like', like);
++            }
++        });
++        const [{n}] = await q;
++        if (Number(n) > 0) {
++            return true;
++        }
++    }
++    return false;
++}
++
++/**
++ * Remove the deleted user's own images (original + resized copies) unless something
++ * else still uses them. Runs after the deletion has committed.
++ */
++async function deleteOrphanedImages(knex, urls) {
++    const storagePath = config.getContentPath('images');
++    const removed = [];
++    for (const url of urls) {
++        const rel = relativeImagePath(url);
++        if (!rel || rel.includes('..') || await imageStillReferenced(knex, rel)) {
++            continue;
++        }
++        const {dir, name, ext} = path.parse(rel);
++        const candidates = [rel, path.join(dir, `${name}_o${ext}`)];
++        const sizeRoot = path.join(storagePath, 'size');
++        if (await fs.pathExists(sizeRoot)) {
++            // resized variants live under size/w<N>/<rel> (and size/w<N>/format/<fmt>/<rel>)
++            const walk = async (d) => {
++                for (const e of await fs.readdir(d, {withFileTypes: true})) {
++                    const p = path.join(d, e.name);
++                    if (e.isDirectory()) {
++                        await walk(p);
++                    } else if (p.endsWith(path.join(dir, `${name}${ext}`))) {
++                        candidates.push(path.relative(storagePath, p));
++                    }
++                }
++            };
++            await walk(sizeRoot);
++        }
++        for (const c of candidates) {
++            const p = path.join(storagePath, c);
++            if (await fs.pathExists(p)) {
++                await fs.remove(p);
++                removed.push(c);
++            }
++        }
++    }
++    if (removed.length) {
++        logging.info(`Deleted ${removed.length} image file(s) of a deleted user`);
++    }
++    return removed;
++}
++
++/**
++ * Pre-deletion backups exist to undo a failed or mistaken deletion. Keep them only for
++ * `privacy:deletionBackupRetentionDays` days (default 0 = remove once the deletion succeeded).
++ * Only backups written by a deletion are tracked (in data/.deletion-backups.json), so
++ * migration backups and manual exports are never touched.
++ */
++async function pruneDeletionBackups(justWritten) {
++    const days = Number(config.get('privacy:deletionBackupRetentionDays') || 0);
++    const dataDir = config.getContentPath('data');
++    const manifestPath = path.join(dataDir, '.deletion-backups.json');
++    const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
++
++    let manifest = [];
++    if (await fs.pathExists(manifestPath)) {
++        manifest = await fs.readJson(manifestPath).catch(() => []);
++    }
++    if (justWritten) {
++        manifest.push({file: path.basename(justWritten), at: Date.now()});
++    }
++
++    const removed = [];
++    const keep = [];
++    for (const entry of manifest) {
++        const p = path.join(dataDir, path.basename(entry.file));
++        if (days === 0 || entry.at < cutoff) {
++            if (await fs.pathExists(p)) {
++                await fs.remove(p);
++            }
++            removed.push(entry.file);
++        } else {
++            keep.push(entry);
++        }
++    }
++    await fs.writeJson(manifestPath, keep);
++    return removed;
++}
++
++module.exports = {
++    destroyUserSessions,
++    scrubActions,
++    deleteOrphanedImages,
++    pruneDeletionBackups
++};

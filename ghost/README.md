@@ -8,7 +8,8 @@ user and a member are deleted through Ghost's own delete buttons.
 Needs Docker and Python 3 with `requests`, `mysql-replication`, `cryptography`
 (`pip install requests mysql-replication cryptography`).
 
-    ./run_audit.sh results/myrun 600     # fresh stack, workload, scans at 4 points in time
+    ./run_audit.sh results/myrun 600                 # fresh stack, workload, scans at 4 points in time
+    PATCHED=1 ./run_audit.sh results/patched 600     # same, on the fixed Ghost build
 
 `results/myrun/summary.md` holds the per-layer tables. Takes ~12 minutes.
 
@@ -22,7 +23,10 @@ Needs Docker and Python 3 with `requests`, `mysql-replication`, `cryptography`
 | `workload/run_workload.py` | `populate`: owner + staff A, B + members M, N, P with canary data; `delete`: deletes A and M |
 | `scanner/scan.py` | scans 8 layers: db, binlog, innodb_raw, content, stdout, mail, public_web, admin_api |
 | `scanner/report.py` | per-user, per-layer, per-phase tables + proposal metrics |
-| `results/baseline/` | the reference run (registry, 4 scans, summary) |
+| `results/baseline/` | the reference run on unmodified Ghost (registry, 4 scans, summary) |
+| `results/patched/` | the same audit on Ghost with the fixes |
+| `CLASSIFICATION.md` | every surviving trace classified as policy / non-compliant / bug |
+| `fixes/` | patch for the bugs and non-compliant traces, plus the patched image build |
 
 ## Scan phases
 
